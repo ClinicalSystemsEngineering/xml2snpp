@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net"
+	"time"
 
 	"github.com/ClinicalSystemsEngineering/snpp"
 	"gopkg.in/natefinch/lumberjack.v2" //rotational logging
@@ -35,6 +36,8 @@ var webpageurls = []string{"home", "status", "page"}
 var queuesize = 0 //the size of the processed message channel
 
 var parsedmsgs = make(chan string, 10000) //message processing channel for xml2snpp conversions
+
+var timeoutDuration = 5 * time.Second //read / write timeout duration
 
 //HomePage definitions
 func HomePage(w http.ResponseWriter, req *http.Request) {
@@ -235,7 +238,13 @@ func main() {
 							//send response to connection
 							response := "<?xml version=\"1.0\" encoding=\"utf-8\"?> <PageTXSrvResp State=\"7\" PagesInQueue=\"0\" PageOK=\"1\" />"
 							log.Printf("Responding:%v\n", response)
-							c.Write([]byte(response))
+
+							_, err = c.Write([]byte(response))
+							if err != nil {
+								log.Println("Timeout error writing PING response")
+								return
+							}
+
 						} else {
 							parsedmsgs <- string(p.ID) + ";" + string(p.TagText)
 
